@@ -17,8 +17,13 @@ public final class Aim {
 	 * onto the ground at the end of the ray.
 	 */
 	public static Vec3 target(ServerLevel level, Player player) {
+		return target(level, player, false);
+	}
+
+	/** @param stopAtFluids whether a water or lava surface counts as what the player is looking at */
+	public static Vec3 target(ServerLevel level, Player player, boolean stopAtFluids) {
 		double range = Math.max(1, level.getServer().getPlayerList().getViewDistance() - 1) * 16;
-		HitResult hit = player.pick(range, 1f, false);
+		HitResult hit = player.pick(range, 1f, stopAtFluids);
 		Vec3 pos = hit.getLocation();
 		if (hit.getType() == HitResult.Type.BLOCK) {
 			return pos;

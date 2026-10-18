@@ -4,7 +4,7 @@
 	"key": {
 		"N": "minecraft:netherite_ingot",
 		"B": "minecraft:breeze_rod",
-		"S": "minecraft:nether_star"
+		"S": "powermod:primordial_core"
 	},
 	"pattern": [
 		"NBN",

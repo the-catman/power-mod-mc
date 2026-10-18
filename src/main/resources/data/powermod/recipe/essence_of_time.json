@@ -1,0 +1,16 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"G": "minecraft:purple_stained_glass",
+		"T": "minecraft:turtle_helmet"
+	},
+	"pattern": [
+		"GGG",
+		"GTG",
+		"GGG"
+	],
+	"result": {
+		"id": "powermod:essence_of_time"
+	}
+}

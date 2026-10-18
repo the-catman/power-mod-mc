@@ -1,0 +1,14 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "equipment",
+	"key": {
+		"H": "powermod:hourglass_of_stillness",
+		"N": "powermod:primordial_core"
+	},
+	"pattern": [
+		"HNH"
+	],
+	"result": {
+		"id": "powermod:hourglass_of_eternity"
+	}
+}

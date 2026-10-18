@@ -1,0 +1,10 @@
+{
+	"type": "minecraft:smelting",
+	"category": "misc",
+	"cookingtime": 200,
+	"experience": 0.3,
+	"ingredient": "powermod:arid_clay",
+	"result": {
+		"id": "powermod:sunbaked_shard"
+	}
+}

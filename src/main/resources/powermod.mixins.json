@@ -3,8 +3,10 @@
 	"package": "com.theca.powermod.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [
+		"EntityAccessor",
 		"EntityMixin",
-		"ServerGamePacketListenerImplAccessor"
+		"ServerGamePacketListenerImplAccessor",
+		"ServerLevelMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

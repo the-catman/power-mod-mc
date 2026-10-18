@@ -5,6 +5,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
 import com.theca.powermod.power.Aim;
+import com.theca.powermod.power.Debris;
 import com.theca.powermod.power.WindGust;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.ChatFormatting;
@@ -24,6 +25,7 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.OwnableEntity;
+import net.minecraft.world.entity.item.FallingBlockEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -55,6 +57,9 @@ public class AncientWindsStaffItem extends Item {
 	private static final int MIN_RELEASE_TICKS = 10;
 	private static final int RELEASE_COOLDOWN = 60;
 	private static final int AUTO_OFFHAND_TICKS = 100;
+	// Chance a torn-away block is flung as debris instead of vanishing, capped per tick
+	private static final float DEBRIS_CHANCE = 0.25f;
+	private static final int MAX_DEBRIS_PER_TICK = 2;
 	// Players channeling hands-free from the offhand, and how many ticks they've channeled
 	private static final Map<UUID, Integer> SUSTAINED = new HashMap<>();
 
@@ -311,7 +316,9 @@ public class AncientWindsStaffItem extends Item {
 			Vec3 outward = new Vec3(away.x, 0, away.z).normalize();
 			Vec3 swirl = new Vec3(-outward.z, 0, outward.x);
 			double falloff = 1 - 0.5 * distance / radius;
-			entity.addDeltaMovement(outward.add(swirl.scale(0.6)).add(0, 0.3, 0).scale(force * falloff));
+			// Debris only gets swirled around, not lifted, so it comes back down instead of piling up in the air
+			double lift = entity instanceof FallingBlockEntity ? 0 : 0.3;
+			entity.addDeltaMovement(outward.add(swirl.scale(0.6)).add(0, lift, 0).scale(force * falloff));
 			entity.needsSync = true;
 		}
 	}
@@ -320,6 +327,7 @@ public class AncientWindsStaffItem extends Item {
 	private static void erode(ServerLevel level, ServerPlayer player, Vec3 centre, double radius, float maxHardness, int budget) {
 		RandomSource random = player.getRandom();
 		int broken = 0;
+		int debris = 0;
 		SoundType breakSound = null;
 		int samples = (int) (BASE_SAMPLES_PER_TICK * (radius / 5) * (radius / 5));
 		for (int i = 0; i < samples && broken < budget; i++) {
@@ -338,9 +346,22 @@ public class AncientWindsStaffItem extends Item {
 			if (hardness < 0 || hardness > maxHardness || !isExposed(level, pos) || !level.mayInteract(player, pos)) {
 				continue;
 			}
-			// Removed silently: one break sound per block would flood the sound engine.
-			// Storage blocks still spill their contents.
-			level.setBlock(pos, state.getFluidState().createLegacyBlock(), Block.UPDATE_ALL, 512);
+			// Some blocks are torn loose and thrown into the whirlwind, which then carries them
+			// around (pushEntities moves them like any other entity). The rest are removed silently:
+			// one break sound per block would flood the sound engine. Storage blocks still spill
+			// their contents.
+			boolean flung = false;
+			if (debris < MAX_DEBRIS_PER_TICK && random.nextFloat() < DEBRIS_CHANCE) {
+				Vec3 away = Vec3.atCenterOf(pos).subtract(centre);
+				Vec3 outward = new Vec3(away.x, 0, away.z).normalize();
+				Vec3 swirl = new Vec3(-outward.z, 0, outward.x);
+				flung = Debris.fling(level, pos, outward.scale(0.3).add(swirl.scale(0.5)).add(0, 0.5 + random.nextDouble() * 0.5, 0));
+			}
+			if (flung) {
+				debris++;
+			} else {
+				level.setBlock(pos, state.getFluidState().createLegacyBlock(), Block.UPDATE_ALL, 512);
+			}
 			level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, state), pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5,
 					4, 0.3, 0.3, 0.3, 0.1);
 			if (breakSound == null) {

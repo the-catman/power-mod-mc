@@ -3,6 +3,8 @@
 	"package": "com.theca.powermod.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
+		"ClientLevelMixin",
+		"EntityRenderDispatcherMixin",
 		"FirstPersonHandsAndItemsRendererMixin"
 	],
 	"injectors": {

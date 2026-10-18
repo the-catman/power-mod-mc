@@ -1,0 +1,17 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"B": "minecraft:blaze_rod",
+		"E": "minecraft:echo_shard",
+		"D": "minecraft:diamond_block"
+	},
+	"pattern": [
+		"BEB",
+		"EDE",
+		"BEB"
+	],
+	"result": {
+		"id": "powermod:primordial_core"
+	}
+}

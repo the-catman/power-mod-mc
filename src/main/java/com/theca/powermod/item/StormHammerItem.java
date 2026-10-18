@@ -1,6 +1,8 @@
 package com.theca.powermod.item;
 
 import com.theca.powermod.power.Aim;
+import com.theca.powermod.power.Cataclysm;
+import com.theca.powermod.power.Debris;
 import com.theca.powermod.power.Shockwave;
 import com.theca.powermod.power.Storm;
 import java.util.function.Consumer;
@@ -38,6 +40,7 @@ public class StormHammerItem extends Item {
 	private static final int FULL_CHARGE_TICKS = 60;
 	private static final int SKYFALL_COOLDOWN = 100;
 	private static final int SLAM_COOLDOWN = 40;
+	private static final int ULTRACHARGE_COOLDOWN = 600;
 	// Ticks between storm strikes while charging: speeds up until full charge, then holds
 	private static final int FIRST_STRIKE_INTERVAL = 16;
 	private static final int FASTEST_STRIKE_INTERVAL = 3;
@@ -52,7 +55,6 @@ public class StormHammerItem extends Item {
 		if (player.isShiftKeyDown()) {
 			if (level instanceof ServerLevel server && player instanceof ServerPlayer serverPlayer) {
 				groundSlam(server, serverPlayer);
-				stack.hurtAndBreak(1, player, hand);
 			}
 			player.getCooldowns().addCooldown(stack, SLAM_COOLDOWN);
 			return InteractionResult.SUCCESS;
@@ -105,6 +107,29 @@ public class StormHammerItem extends Item {
 			server.playSound(null, player.blockPosition(), SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 1.2f, 1.6f);
 			server.sendParticles(ColorParticleOption.create(ParticleTypes.FLASH, 0xFFFFFFFF), tip.x, tip.y, tip.z, 1, 0, 0, 0, 0);
 		}
+		boolean armed = charge >= FULL_CHARGE_TICKS && player.isShiftKeyDown();
+		// Sneaking at full charge arms the Ultracharge: the hammer crackles with barely held power
+		if (armed) {
+			server.sendParticles(ParticleTypes.ELECTRIC_SPARK, tip.x, tip.y, tip.z, 6, 0.6, 0.6, 0.6, 0.4);
+			if (charge % 20 == 0) {
+				server.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.PLAYERS, 1f, 0.6f);
+			}
+		}
+		if (charge % 4 == 0) {
+			player.sendOverlayMessage(chargeStatus(charge, armed));
+		}
+	}
+
+	private static Component chargeStatus(int charge, boolean armed) {
+		int percent = Math.min(100, charge * 100 / FULL_CHARGE_TICKS);
+		if (armed) {
+			return Component.translatable("item.powermod.storm_hammer.status.ultracharge").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
+		}
+		if (charge >= FULL_CHARGE_TICKS) {
+			return Component.translatable("item.powermod.storm_hammer.status.full").withStyle(ChatFormatting.AQUA);
+		}
+		String key = charge < MIN_CHARGE_TICKS ? "item.powermod.storm_hammer.status.charging" : "item.powermod.storm_hammer.status.ready";
+		return Component.translatable(key, percent).withStyle(charge < MIN_CHARGE_TICKS ? ChatFormatting.GRAY : ChatFormatting.AQUA);
 	}
 
 	@Override
@@ -117,10 +142,14 @@ public class StormHammerItem extends Item {
 			return false;
 		}
 		float power = Math.min(charge, FULL_CHARGE_TICKS) / (float) FULL_CHARGE_TICKS;
-		skyfall(server, player, Aim.target(server, player), power);
-		player.getCooldowns().addCooldown(stack, SKYFALL_COOLDOWN);
-		InteractionHand hand = player.getMainHandItem() == stack ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
-		stack.hurtAndBreak(3, player, hand);
+		Vec3 target = Aim.target(server, player);
+		skyfall(server, player, target, power);
+		if (charge >= FULL_CHARGE_TICKS && player.isShiftKeyDown()) {
+			Cataclysm.start(server, player, target);
+			player.getCooldowns().addCooldown(stack, ULTRACHARGE_COOLDOWN);
+		} else {
+			player.getCooldowns().addCooldown(stack, SKYFALL_COOLDOWN);
+		}
 		return true;
 	}
 
@@ -128,6 +157,7 @@ public class StormHammerItem extends Item {
 	public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> builder, TooltipFlag flag) {
 		builder.accept(Component.translatable("item.powermod.storm_hammer.tooltip.skyfall").withStyle(ChatFormatting.AQUA));
 		builder.accept(Component.translatable("item.powermod.storm_hammer.tooltip.shockwave").withStyle(ChatFormatting.AQUA));
+		builder.accept(Component.translatable("item.powermod.storm_hammer.tooltip.ultracharge").withStyle(ChatFormatting.GOLD));
 	}
 
 	private static double strikeInterval(int charge) {
@@ -182,9 +212,37 @@ public class StormHammerItem extends Item {
 		float craterRadius = 2.5f + 2.5f * power;
 		BlockPos centre = BlockPos.containing(target);
 		int r = Mth.ceil(craterRadius);
+		int debris = 0;
+		int maxDebris = 15 + Math.round(25 * power);
 		for (BlockPos pos : BlockPos.betweenClosed(centre.offset(-r, -r, -r), centre.offset(r, 0, r))) {
-			if (pos.distToCenterSqr(target) <= craterRadius * craterRadius) {
-				Shockwave.tryBreak(level, player, pos.immutable(), 0.6f);
+			if (pos.distToCenterSqr(target) > craterRadius * craterRadius
+					|| random.nextFloat() >= 0.6f || !Shockwave.canBreak(level, player, pos)) {
+				continue;
+			}
+			// A good part of the crater is blasted up and out as debris
+			if (debris < maxDebris && random.nextFloat() < 0.35f) {
+				Vec3 away = Vec3.atCenterOf(pos).subtract(target);
+				Vec3 out = new Vec3(away.x, 0, away.z).normalize().scale(0.3 + random.nextDouble() * 0.5);
+				if (Debris.fling(level, pos.immutable(), out.add(0, 0.8 + random.nextDouble() * 0.6 * (1 + power), 0))) {
+					debris++;
+					continue;
+				}
+			}
+			level.destroyBlock(pos, true, player, 512);
+		}
+		// The strike drives on below the crater as a narrowing shaft
+		int shaftDepth = 6 + Math.round(10 * power);
+		BlockPos shaftTop = centre.below(r);
+		for (int depth = 1; depth <= shaftDepth; depth++) {
+			double shaftRadius = 0.8 + craterRadius * 0.6 * (1 - depth / (double) shaftDepth);
+			int sr = Mth.ceil(shaftRadius);
+			BlockPos layer = shaftTop.below(depth);
+			for (BlockPos pos : BlockPos.betweenClosed(layer.offset(-sr, 0, -sr), layer.offset(sr, 0, sr))) {
+				double dx = pos.getX() - layer.getX();
+				double dz = pos.getZ() - layer.getZ();
+				if (dx * dx + dz * dz <= shaftRadius * shaftRadius) {
+					Shockwave.tryBreak(level, player, pos.immutable(), 0.7f);
+				}
 			}
 		}
 

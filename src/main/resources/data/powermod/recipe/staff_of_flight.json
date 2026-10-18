@@ -3,13 +3,13 @@
 	"category": "equipment",
 	"key": {
 		"D": "minecraft:diamond",
-		"B": "minecraft:breeze_rod",
-		"F": "powermod:zephyr_feather"
+		"F": "powermod:zephyr_feather",
+		"E": "minecraft:elytra"
 	},
 	"pattern": [
-		"DBD",
-		"BFB",
-		"DBD"
+		"DFD",
+		"FEF",
+		"DFD"
 	],
 	"result": {
 		"id": "powermod:staff_of_flight"

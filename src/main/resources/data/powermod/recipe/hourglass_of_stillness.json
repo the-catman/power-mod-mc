@@ -1,0 +1,19 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "equipment",
+	"key": {
+		"N": "minecraft:netherite_ingot",
+		"D": "minecraft:diamond",
+		"G": "minecraft:gold_ingot",
+		"E": "powermod:essence_of_time",
+		"M": "minecraft:emerald"
+	},
+	"pattern": [
+		"NDN",
+		"GEG",
+		"MDM"
+	],
+	"result": {
+		"id": "powermod:hourglass_of_stillness"
+	}
+}

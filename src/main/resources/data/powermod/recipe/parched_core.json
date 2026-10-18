@@ -1,0 +1,17 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"K": "minecraft:dried_kelp_block",
+		"S": "powermod:sunbaked_shard",
+		"B": "minecraft:bucket"
+	},
+	"pattern": [
+		"KSK",
+		"SBS",
+		"KSK"
+	],
+	"result": {
+		"id": "powermod:parched_core"
+	}
+}

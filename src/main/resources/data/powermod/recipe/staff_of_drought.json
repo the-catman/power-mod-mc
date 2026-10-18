@@ -1,0 +1,16 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "equipment",
+	"key": {
+		"C": "powermod:parched_core",
+		"R": "powermod:sunbaked_rod"
+	},
+	"pattern": [
+		"  C",
+		" R ",
+		"R  "
+	],
+	"result": {
+		"id": "powermod:staff_of_drought"
+	}
+}

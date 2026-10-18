@@ -12,18 +12,44 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
-import net.minecraft.world.item.ToolMaterial;
 
 public final class ModItems {
-	// Diamond-tier sword stats with +10 damage: 14 attack damage, 0.8 attack speed
+	// No melee bonus and no durability: its power is all in Skyfall and the shockwave
 	public static final StormHammerItem STORM_HAMMER = register("storm_hammer", StormHammerItem::new,
-			new Item.Properties().sword(ToolMaterial.DIAMOND, 10f, -3.2f).rarity(Rarity.EPIC).fireResistant());
+			new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant());
 
 	public static final AncientWindsStaffItem STAFF_OF_ANCIENT_WINDS = register("staff_of_ancient_winds", AncientWindsStaffItem::new,
 			new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant());
 
 	public static final FlightStaffItem STAFF_OF_FLIGHT = register("staff_of_flight", FlightStaffItem::new,
 			new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+
+	public static final StarfallSceptreItem STARFALL_SCEPTRE = register("starfall_sceptre", StarfallSceptreItem::new,
+			new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant());
+
+	public static final HourglassOfStillnessItem HOURGLASS_OF_STILLNESS = register("hourglass_of_stillness", HourglassOfStillnessItem::new,
+			new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+
+	public static final HourglassOfEternityItem HOURGLASS_OF_ETERNITY = register("hourglass_of_eternity", HourglassOfEternityItem::new,
+			new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant());
+
+	public static final DroughtStaffItem STAFF_OF_DROUGHT = register("staff_of_drought", DroughtStaffItem::new,
+			new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+
+	// The Staff of Drought's crafting chain: arid clay is smelted into sunbaked shards, which make
+	// sunbaked rods and, with dried kelp and a bucket, a parched core
+	public static final Item ARID_CLAY = register("arid_clay", Item::new, new Item.Properties());
+	public static final Item SUNBAKED_SHARD = register("sunbaked_shard", Item::new, new Item.Properties());
+	public static final Item SUNBAKED_ROD = register("sunbaked_rod", Item::new, new Item.Properties());
+	public static final Item PARCHED_CORE = register("parched_core", Item::new, new Item.Properties().rarity(Rarity.UNCOMMON));
+
+	// Rare ingredient shared by the mod's top-tier items
+	public static final Item PRIMORDIAL_CORE = register("primordial_core", Item::new,
+			new Item.Properties().rarity(Rarity.RARE).fireResistant());
+
+	// Crafting ingredient for the Hourglass of Stillness
+	public static final Item ESSENCE_OF_TIME = register("essence_of_time", Item::new,
+			new Item.Properties().rarity(Rarity.RARE));
 
 	// Crafting ingredient for the Staff of Flight
 	public static final Item ZEPHYR_FEATHER = register("zephyr_feather", Item::new,
@@ -40,7 +66,17 @@ public final class ModItems {
 						output.accept(STORM_HAMMER);
 						output.accept(STAFF_OF_ANCIENT_WINDS);
 						output.accept(STAFF_OF_FLIGHT);
+						output.accept(STARFALL_SCEPTRE);
+						output.accept(HOURGLASS_OF_STILLNESS);
+						output.accept(HOURGLASS_OF_ETERNITY);
+						output.accept(STAFF_OF_DROUGHT);
+						output.accept(PRIMORDIAL_CORE);
 						output.accept(ZEPHYR_FEATHER);
+						output.accept(ESSENCE_OF_TIME);
+						output.accept(ARID_CLAY);
+						output.accept(SUNBAKED_SHARD);
+						output.accept(SUNBAKED_ROD);
+						output.accept(PARCHED_CORE);
 					})
 					.build());
 
