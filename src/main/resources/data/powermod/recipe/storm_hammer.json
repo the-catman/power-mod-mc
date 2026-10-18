@@ -3,13 +3,13 @@
 	"category": "equipment",
 	"key": {
 		"D": "minecraft:diamond_block",
-		"L": "#minecraft:lightning_rods",
-		"B": "minecraft:blaze_rod"
+		"C": "powermod:primordial_core",
+		"L": "#minecraft:lightning_rods"
 	},
 	"pattern": [
 		" D ",
-		"DLD",
-		" B "
+		"DCD",
+		" L "
 	],
 	"result": {
 		"id": "powermod:storm_hammer"

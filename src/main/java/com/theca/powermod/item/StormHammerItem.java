@@ -1,7 +1,6 @@
 package com.theca.powermod.item;
 
 import com.theca.powermod.power.Aim;
-import com.theca.powermod.power.Cataclysm;
 import com.theca.powermod.power.Debris;
 import com.theca.powermod.power.Shockwave;
 import com.theca.powermod.power.Storm;
@@ -40,10 +39,13 @@ public class StormHammerItem extends Item {
 	private static final int FULL_CHARGE_TICKS = 60;
 	private static final int SKYFALL_COOLDOWN = 100;
 	private static final int SLAM_COOLDOWN = 40;
-	private static final int ULTRACHARGE_COOLDOWN = 600;
 	// Ticks between storm strikes while charging: speeds up until full charge, then holds
 	private static final int FIRST_STRIKE_INTERVAL = 16;
 	private static final int FASTEST_STRIKE_INTERVAL = 3;
+	// How hard a bolt looks for ground to land on: spots tried, and how far up and down each is searched
+	private static final int STRIKE_ATTEMPTS = 6;
+	private static final int STRIKE_SEARCH_UP = 6;
+	private static final int STRIKE_SEARCH_DOWN = 12;
 
 	public StormHammerItem(Properties properties) {
 		super(properties);
@@ -93,41 +95,27 @@ public class StormHammerItem extends Item {
 		if (charge == 1) {
 			server.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.PLAYERS, 1f, 1.4f);
 		}
-		// The storm lashes the ground around you for as long as the hammer is raised
+		// The storm lashes the ground around you for as long as the hammer is raised. Once it's
+		// fully charged, the storm moves over to wherever you're aiming instead.
 		if ((int) strikePhase(charge) > (int) strikePhase(charge - 1)) {
-			double angle = random.nextDouble() * Math.PI * 2;
-			double distance = 5 + random.nextDouble() * 5;
-			int x = Mth.floor(player.getX() + Math.cos(angle) * distance);
-			int z = Mth.floor(player.getZ() + Math.sin(angle) * distance);
-			BlockPos ground = Shockwave.findSurface(server, x, z, player.getBlockY());
-			double y = ground != null ? ground.getY() + 1 : player.getY();
-			Storm.strike(server, new Vec3(x + 0.5, y, z + 0.5), player);
+			boolean full = charge >= FULL_CHARGE_TICKS;
+			if (full) {
+				strikeAround(server, player, Aim.target(server, player), 2, 8);
+			} else {
+				strikeAround(server, player, player.position(), 5, 10);
+			}
 		}
 		if (charge == FULL_CHARGE_TICKS) {
 			server.playSound(null, player.blockPosition(), SoundEvents.BEACON_POWER_SELECT, SoundSource.PLAYERS, 1.2f, 1.6f);
 			server.sendParticles(ColorParticleOption.create(ParticleTypes.FLASH, 0xFFFFFFFF), tip.x, tip.y, tip.z, 1, 0, 0, 0, 0);
 		}
-		boolean armed = charge >= FULL_CHARGE_TICKS && player.isShiftKeyDown();
-		// Sneaking at full charge arms the Ultracharge: the hammer crackles with barely held power
-		if (armed) {
-			server.sendParticles(ParticleTypes.ELECTRIC_SPARK, tip.x, tip.y, tip.z, 6, 0.6, 0.6, 0.6, 0.4);
-			if (charge % 20 == 0) {
-				server.playSound(null, player.blockPosition(), SoundEvents.WARDEN_SONIC_CHARGE, SoundSource.PLAYERS, 1f, 0.6f);
-			}
-		}
 		if (charge % 4 == 0) {
-			player.sendOverlayMessage(chargeStatus(charge, armed));
+			player.sendOverlayMessage(chargeStatus(charge));
 		}
 	}
 
-	private static Component chargeStatus(int charge, boolean armed) {
+	private static Component chargeStatus(int charge) {
 		int percent = Math.min(100, charge * 100 / FULL_CHARGE_TICKS);
-		if (armed) {
-			return Component.translatable("item.powermod.storm_hammer.status.ultracharge").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
-		}
-		if (charge >= FULL_CHARGE_TICKS) {
-			return Component.translatable("item.powermod.storm_hammer.status.full").withStyle(ChatFormatting.AQUA);
-		}
 		String key = charge < MIN_CHARGE_TICKS ? "item.powermod.storm_hammer.status.charging" : "item.powermod.storm_hammer.status.ready";
 		return Component.translatable(key, percent).withStyle(charge < MIN_CHARGE_TICKS ? ChatFormatting.GRAY : ChatFormatting.AQUA);
 	}
@@ -142,14 +130,8 @@ public class StormHammerItem extends Item {
 			return false;
 		}
 		float power = Math.min(charge, FULL_CHARGE_TICKS) / (float) FULL_CHARGE_TICKS;
-		Vec3 target = Aim.target(server, player);
-		skyfall(server, player, target, power);
-		if (charge >= FULL_CHARGE_TICKS && player.isShiftKeyDown()) {
-			Cataclysm.start(server, player, target);
-			player.getCooldowns().addCooldown(stack, ULTRACHARGE_COOLDOWN);
-		} else {
-			player.getCooldowns().addCooldown(stack, SKYFALL_COOLDOWN);
-		}
+		skyfall(server, player, Aim.target(server, player), power);
+		player.getCooldowns().addCooldown(stack, SKYFALL_COOLDOWN);
 		return true;
 	}
 
@@ -157,7 +139,6 @@ public class StormHammerItem extends Item {
 	public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> builder, TooltipFlag flag) {
 		builder.accept(Component.translatable("item.powermod.storm_hammer.tooltip.skyfall").withStyle(ChatFormatting.AQUA));
 		builder.accept(Component.translatable("item.powermod.storm_hammer.tooltip.shockwave").withStyle(ChatFormatting.AQUA));
-		builder.accept(Component.translatable("item.powermod.storm_hammer.tooltip.ultracharge").withStyle(ChatFormatting.GOLD));
 	}
 
 	private static double strikeInterval(int charge) {
@@ -183,9 +164,7 @@ public class StormHammerItem extends Item {
 		Storm.strike(level, target, player);
 		int extraBolts = 4 + Math.round(8 * power);
 		for (int i = 0; i < extraBolts; i++) {
-			double angle = random.nextDouble() * Math.PI * 2;
-			double distance = 3 + random.nextDouble() * 7;
-			Storm.strike(level, target.add(Math.cos(angle) * distance, 0, Math.sin(angle) * distance), player);
+			strikeAround(level, player, target, 3, 10);
 		}
 
 		// Pillar of light from the sky down to the impact
@@ -247,6 +226,27 @@ public class StormHammerItem extends Item {
 		}
 
 		Shockwave.start(level, player, target, 16 + 24 * power, 6 + 6 * power, 0.3f + 0.15f * power);
+	}
+
+	/**
+	 * Strikes lightning onto the ground somewhere {@code minDistance} to {@code maxDistance} blocks
+	 * from {@code centre}. Like a shockwave, it searches up and down each spot for the surface, so
+	 * bolts land on hillsides and down in hollows instead of in mid-air or inside the ground.
+	 * If none of a few spots has ground nearby, nothing strikes.
+	 */
+	private static void strikeAround(ServerLevel level, ServerPlayer player, Vec3 centre, double minDistance, double maxDistance) {
+		RandomSource random = player.getRandom();
+		for (int attempt = 0; attempt < STRIKE_ATTEMPTS; attempt++) {
+			double angle = random.nextDouble() * Math.PI * 2;
+			double distance = minDistance + random.nextDouble() * (maxDistance - minDistance);
+			int x = Mth.floor(centre.x + Math.cos(angle) * distance);
+			int z = Mth.floor(centre.z + Math.sin(angle) * distance);
+			BlockPos ground = Shockwave.findSurface(level, x, z, Mth.floor(centre.y), STRIKE_SEARCH_UP, STRIKE_SEARCH_DOWN);
+			if (ground != null) {
+				Storm.strike(level, new Vec3(x + 0.5, ground.getY() + 1, z + 0.5), player);
+				return;
+			}
+		}
 	}
 
 	private static void groundSlam(ServerLevel level, ServerPlayer player) {

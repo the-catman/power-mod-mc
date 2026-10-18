@@ -6,33 +6,44 @@ import com.theca.powermod.item.HourglassOfStillnessItem;
 import com.theca.powermod.item.ModItems;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Holder;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.clock.ServerClockManager;
+import net.minecraft.world.clock.WorldClock;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 /**
  * A sphere where time stands still. Everything inside except players stops dead: mobs
  * mid-stride, arrows mid-flight, falling sand and lit TNT. Things that drift in freeze too.
+ * Fire stops spreading and burning out, and water and lava stop flowing.
  * When the bubble ends, everything picks up exactly where it left off, all at once.
+ * While an eternal bubble is up, the sun and moon stand still too.
  *
  * Freezing works by skipping entity ticks (see ServerLevelMixin and the client's
  * ClientLevelMixin). The server tells clients where the bubbles are so they stop
@@ -46,6 +57,8 @@ public final class TimeBubble {
 	private static final DustParticleOptions SHELL = new DustParticleOptions(0xB98CFF, 1.2f);
 
 	private static final List<TimeBubble> ACTIVE = new ArrayList<>();
+	// Day/night clocks this mod paused for eternal bubbles, so only those get resumed
+	private static final Set<Holder<WorldClock>> PAUSED_CLOCKS = new HashSet<>();
 	// Bubbles in the level the client is in, as last sent by the server
 	private static List<Zone> clientZones = List.of();
 
@@ -104,6 +117,14 @@ public final class TimeBubble {
 				sync(level);
 			}
 		});
+		ServerTickEvents.END_SERVER_TICK.register(TimeBubble::holdClocks);
+		// Never leave the clock paused in the saved world
+		ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+			for (Holder<WorldClock> clock : PAUSED_CLOCKS) {
+				server.clockManager().setPaused(clock, false);
+			}
+			PAUSED_CLOCKS.clear();
+		});
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> sendTo(handler.player, handler.player.level()));
 		ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register((player, from, to) -> sendTo(player, to));
 	}
@@ -143,6 +164,45 @@ public final class TimeBubble {
 
 	private static Vec3 centreOn(Player player) {
 		return player.position().add(0, 1, 0);
+	}
+
+	/**
+	 * Stops the day/night cycle of every level with an eternal bubble in it, and lets it run
+	 * again once the last one there ends. A clock that was already paused, by a command for
+	 * instance, is left alone.
+	 */
+	private static void holdClocks(MinecraftServer server) {
+		ServerClockManager clocks = server.clockManager();
+		Set<Holder<WorldClock>> held = new HashSet<>();
+		for (TimeBubble bubble : ACTIVE) {
+			if (bubble.eternal) {
+				bubble.level.dimensionType().defaultClock().ifPresent(held::add);
+			}
+		}
+		for (Holder<WorldClock> clock : held) {
+			if (!PAUSED_CLOCKS.contains(clock) && !clocks.getInstance(clock).isPaused()) {
+				clocks.setPaused(clock, true);
+				PAUSED_CLOCKS.add(clock);
+			}
+		}
+		PAUSED_CLOCKS.removeIf(clock -> {
+			if (held.contains(clock)) {
+				return false;
+			}
+			clocks.setPaused(clock, false);
+			return true;
+		});
+	}
+
+	/** Whether the block at {@code pos} is held still by a bubble: fire there doesn't spread or burn out, and fluids don't flow. Server only. */
+	public static boolean isFrozen(Level level, BlockPos pos) {
+		Vec3 centre = Vec3.atCenterOf(pos);
+		for (TimeBubble bubble : ACTIVE) {
+			if (bubble.level == level && bubble.zone.contains(centre)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Whether this entity is held still by a bubble. Players, and anything carrying one, are never frozen. */

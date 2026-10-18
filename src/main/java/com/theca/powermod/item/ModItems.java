@@ -22,7 +22,7 @@ public final class ModItems {
 			new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant());
 
 	public static final FlightStaffItem STAFF_OF_FLIGHT = register("staff_of_flight", FlightStaffItem::new,
-			new Item.Properties().stacksTo(1).rarity(Rarity.RARE));
+			new Item.Properties().stacksTo(1).rarity(Rarity.EPIC));
 
 	public static final StarfallSceptreItem STARFALL_SCEPTRE = register("starfall_sceptre", StarfallSceptreItem::new,
 			new Item.Properties().stacksTo(1).rarity(Rarity.EPIC).fireResistant());

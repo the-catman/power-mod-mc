@@ -41,8 +41,10 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Hold right-click to channel a whirlwind wherever you're looking; it follows your aim.
- * It never stops building: the longer you channel, the wider it reaches and the harder
- * the blocks it can tear away, until eventually only unbreakable blocks survive.
+ * The whirlwind is fed by gusts streaming out from around you (see WindGust): each one
+ * takes time to fly there, and tears at the blocks and shoves the creatures where it lands.
+ * It never stops building: the longer you channel, the more gusts, the wider it reaches and
+ * the harder the blocks it can tear away, until eventually only unbreakable blocks survive.
  * After 5 seconds the staff moves itself to your offhand and keeps channeling hands-free.
  * Letting go of right-click, or taking the staff out of your offhand, ends it with a final
  * gust that hurls everything around the whirlwind away.
@@ -51,9 +53,20 @@ public class AncientWindsStaffItem extends Item {
 	// Blocks this close to the wielder are left alone, even if you aim at your own feet
 	private static final double CALM_RADIUS = 3;
 	private static final double MAX_RADIUS = 25;
-	// Spots checked per tick at radius 5; scales with the whirlwind's surface area so bigger
-	// whirlwinds erode just as densely
-	private static final int BASE_SAMPLES_PER_TICK = 80;
+	// Spots checked per gust landing, per cubic block of the area it lands in
+	private static final double SAMPLES_PER_BLOCK = 1.5;
+	private static final int MAX_SAMPLES_PER_GUST = 1500;
+	// Each gust works on this share of the whirlwind's radius around where it lands
+	private static final double GUST_REACH = 0.6;
+	private static final double MIN_GUST_REACH = 3;
+	private static final float MAX_GUSTS_PER_TICK = 3;
+	// Damage from each gust that lands on a creature, growing as the wind builds. Mobs can only
+	// be hurt every half second, so this is roughly half the damage per second.
+	private static final float MIN_GUST_DAMAGE = 2;
+	private static final float MAX_GUST_DAMAGE = 8;
+	// Damage from the final blast at its centre, falling off to half at its edge
+	private static final float MIN_BLAST_DAMAGE = 6;
+	private static final float MAX_BLAST_DAMAGE = 24;
 	private static final int MIN_RELEASE_TICKS = 10;
 	private static final int RELEASE_COOLDOWN = 60;
 	private static final int AUTO_OFFHAND_TICKS = 100;
@@ -180,14 +193,23 @@ public class AncientWindsStaffItem extends Item {
 
 		Vec3 focus = Aim.target(server, player);
 
-		swirlParticles(server, player, focus, radius);
-		// Gusts stream in from around you towards the whirlwind, more of them the longer you channel
-		float gustRate = Math.min(1.2f, 0.4f + strength / 40);
-		if (player.getRandom().nextFloat() < gustRate) {
-			WindGust.launch(server, player, focus, radius);
+		// Gusts stream out from around you towards the whirlwind, more of them the longer you channel.
+		// Between them they carry as much force each tick as the whirlwind has, so it does its work
+		// only where, and once, the wind arrives.
+		float gustRate = Math.min(MAX_GUSTS_PER_TICK, 1 + strength / 20);
+		int gusts = (int) gustRate + (player.getRandom().nextFloat() < gustRate % 1 ? 1 : 0);
+		double reach = Math.max(MIN_GUST_REACH, radius * GUST_REACH);
+		// A gust only covers part of the whirlwind, so it hits harder than the whirlwind does per tick
+		double push = (0.08 + 0.04 * Math.sqrt(strength)) * 3 / gustRate;
+		int budget = (int) Math.ceil((4 + Math.min(26, strength / 4)) * 2 / gustRate);
+		float damage = Math.min(MAX_GUST_DAMAGE, MIN_GUST_DAMAGE + strength / 10);
+		for (int i = 0; i < gusts; i++) {
+			WindGust.launch(server, player, focus, radius, push * 0.5, landed -> {
+				swirlParticles(server, player, landed, reach);
+				pushEntities(server, player, landed, reach, focus, push, damage);
+				erode(server, player, landed, reach, maxHardness, budget);
+			});
 		}
-		pushEntities(server, player, focus, radius, 0.08 + 0.04 * Math.sqrt(strength));
-		erode(server, player, focus, radius, maxHardness, 4 + (int) Math.min(26, strength / 4));
 
 		windSounds(server, player, focus, ticks, strength);
 
@@ -216,15 +238,23 @@ public class AncientWindsStaffItem extends Item {
 		float strength = strength(ticks);
 		double radius = radius(strength) * 1.5;
 
-		// One last gust hurls everything around the whirlwind away
-		Vec3 pos = Aim.target(server, player);
-		pushEntities(server, player, pos, radius, 1.0 + 0.2 * Math.sqrt(strength));
+		// One last blast flies out to the whirlwind and hurls everything around it away
+		Vec3 target = Aim.target(server, player);
+		double force = 1.0 + 0.2 * Math.sqrt(strength);
+		server.playSound(null, player.blockPosition(), SoundEvents.WIND_CHARGE_THROW, SoundSource.PLAYERS, 3f, 0.5f);
+		server.playSound(null, player.blockPosition(), SoundEvents.BREEZE_SHOOT, SoundSource.PLAYERS, 3f, 0.5f);
+		float damage = Math.min(MAX_BLAST_DAMAGE, MIN_BLAST_DAMAGE + strength / 4);
+		WindGust.blast(server, player, target, force, pos -> finalBlast(server, player, pos, radius, force, damage));
+	}
+
+	private static void finalBlast(ServerLevel server, ServerPlayer player, Vec3 pos, double radius, double force, float damage) {
+		pushEntities(server, player, pos, radius, pos, force, damage);
 		server.sendParticles(ParticleTypes.GUST_EMITTER_LARGE, pos.x, pos.y + 1, pos.z, 1, 0, 0, 0, 0);
 		for (int i = 0; i < 24; i++) {
 			double angle = Math.PI * 2 * i / 24;
 			server.sendParticles(ParticleTypes.CLOUD, pos.x, pos.y + 1, pos.z, 0, Math.cos(angle), 0.1, Math.sin(angle), 1.2);
 		}
-		// Heard at both the whirlwind and the wielder, layered for a deafening blast
+		// Heard at both the blast and the wielder, layered for a deafening boom
 		for (Vec3 at : new Vec3[] {pos, player.position()}) {
 			server.playSound(null, at.x, at.y, at.z, SoundEvents.WIND_CHARGE_BURST, SoundSource.PLAYERS, 4f, 0.5f);
 			server.playSound(null, at.x, at.y, at.z, SoundEvents.BREEZE_WIND_CHARGE_BURST, SoundSource.PLAYERS, 4f, 0.7f);
@@ -303,14 +333,19 @@ public class AncientWindsStaffItem extends Item {
 		}
 	}
 
-	private static void pushEntities(ServerLevel level, ServerPlayer player, Vec3 centre, double radius, double force) {
-		for (Entity entity : level.getEntities(player, new AABB(centre, centre).inflate(radius))) {
+	/**
+	 * Pushes everything within {@code radius} of {@code around} outwards from, and spinning around,
+	 * the whirlwind's {@code centre}, and hurts the creatures among them by up to {@code damage}.
+	 */
+	private static void pushEntities(ServerLevel level, ServerPlayer player, Vec3 around, double radius, Vec3 centre, double force,
+			float damage) {
+		for (Entity entity : level.getEntities(player, new AABB(around, around).inflate(radius))) {
 			if (entity.isSpectator() || entity instanceof OwnableEntity pet && pet.getOwner() == player) {
 				continue;
 			}
+			double distance = entity.position().distanceTo(around);
 			Vec3 away = entity.position().subtract(centre);
-			double distance = away.length();
-			if (distance > radius || distance < 0.01) {
+			if (distance > radius || away.horizontalDistanceSqr() < 0.0001) {
 				continue;
 			}
 			Vec3 outward = new Vec3(away.x, 0, away.z).normalize();
@@ -320,16 +355,19 @@ public class AncientWindsStaffItem extends Item {
 			double lift = entity instanceof FallingBlockEntity ? 0 : 0.3;
 			entity.addDeltaMovement(outward.add(swirl.scale(0.6)).add(0, lift, 0).scale(force * falloff));
 			entity.needsSync = true;
+			if (entity instanceof LivingEntity victim) {
+				victim.hurtServer(level, level.damageSources().playerAttack(player), damage * (float) falloff);
+			}
 		}
 	}
 
-	/** Tears away exposed blocks at random within the radius, up to {@code budget} per tick. */
+	/** Tears away exposed blocks at random within the radius, up to {@code budget} of them. */
 	private static void erode(ServerLevel level, ServerPlayer player, Vec3 centre, double radius, float maxHardness, int budget) {
 		RandomSource random = player.getRandom();
 		int broken = 0;
 		int debris = 0;
 		SoundType breakSound = null;
-		int samples = (int) (BASE_SAMPLES_PER_TICK * (radius / 5) * (radius / 5));
+		int samples = (int) Math.min(MAX_SAMPLES_PER_GUST, SAMPLES_PER_BLOCK * 4.2 * radius * radius * radius);
 		for (int i = 0; i < samples && broken < budget; i++) {
 			// Uniformly random point in the sphere
 			Vec3 direction = new Vec3(random.nextGaussian(), random.nextGaussian(), random.nextGaussian()).normalize();

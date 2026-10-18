@@ -4,7 +4,7 @@ import com.theca.powermod.item.AncientWindsStaffItem;
 import com.theca.powermod.item.FlightStaffItem;
 import com.theca.powermod.item.ModComponents;
 import com.theca.powermod.item.ModItems;
-import com.theca.powermod.power.Cataclysm;
+import com.theca.powermod.power.DroughtBolt;
 import com.theca.powermod.power.Meteor;
 import com.theca.powermod.power.Shockwave;
 import com.theca.powermod.power.Storm;
@@ -29,7 +29,7 @@ public class PowerMod implements ModInitializer {
 		Shockwave.register();
 		WindGust.register();
 		Meteor.register();
-		Cataclysm.register();
+		DroughtBolt.register();
 		TimeBubble.register();
 		LOGGER.info("Power Mod loaded");
 	}
