@@ -1,0 +1,17 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "equipment",
+	"key": {
+		"D": "minecraft:diamond_block",
+		"L": "#minecraft:lightning_rods",
+		"B": "minecraft:blaze_rod"
+	},
+	"pattern": [
+		" D ",
+		"DLD",
+		" B "
+	],
+	"result": {
+		"id": "powermod:storm_hammer"
+	}
+}

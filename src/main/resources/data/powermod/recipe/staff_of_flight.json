@@ -1,0 +1,17 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "equipment",
+	"key": {
+		"D": "minecraft:diamond",
+		"B": "minecraft:breeze_rod",
+		"F": "powermod:zephyr_feather"
+	},
+	"pattern": [
+		"DBD",
+		"BFB",
+		"DBD"
+	],
+	"result": {
+		"id": "powermod:staff_of_flight"
+	}
+}

@@ -1,0 +1,50 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}"
+}
+
+repositories {
+	// Only needed when depending on other mods; Loom adds Minecraft/Fabric repos itself.
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"powermod" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 25
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(25)
+	}
+}
+
+// Builds the mod and copies the jar into the Prism instance's mods folder
+tasks.register('installToPrism', Copy) {
+	dependsOn jar
+	from jar.archiveFile
+	into project.prism_mods_dir
+}

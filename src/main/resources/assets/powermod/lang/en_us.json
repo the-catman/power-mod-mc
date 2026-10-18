@@ -1,0 +1,21 @@
+{
+	"itemGroup.powermod.items": "Power Mod",
+	"item.powermod.storm_hammer": "Storm Hammer",
+	"item.powermod.storm_hammer.tooltip.skyfall": "Hold right-click: call down Skyfall",
+	"item.powermod.storm_hammer.tooltip.shockwave": "Sneak + right-click: Shockwave",
+	"item.powermod.staff_of_ancient_winds": "Staff of Ancient Winds",
+	"item.powermod.staff_of_ancient_winds.tooltip.channel": "Hold right-click: channel an ever-growing whirlwind where you look",
+	"item.powermod.staff_of_ancient_winds.tooltip.offhand": "After 5s it moves to your offhand and channels hands-free",
+	"item.powermod.staff_of_ancient_winds.tooltip.release": "Release, or take it out of your offhand: a final gust hurls everything away",
+	"item.powermod.staff_of_ancient_winds.channel": "%s · %ss · radius %s",
+	"item.powermod.staff_of_ancient_winds.tier.breeze": "Breeze",
+	"item.powermod.staff_of_ancient_winds.tier.gale": "Gale",
+	"item.powermod.staff_of_ancient_winds.tier.storm": "Storm",
+	"item.powermod.staff_of_ancient_winds.tier.tempest": "Tempest",
+	"item.powermod.staff_of_ancient_winds.tier.cataclysm": "Cataclysm",
+	"item.powermod.zephyr_feather": "Zephyr Feather",
+	"item.powermod.staff_of_flight": "Staff of Flight",
+	"item.powermod.staff_of_flight.tooltip.takeoff": "While held: jump again in mid-air to take off",
+	"item.powermod.staff_of_flight.tooltip.fly": "Hold forward to ride the wind; let go to drift down, sneak to descend",
+	"item.powermod.staff_of_flight.tooltip.dash": "Right-click: gust dash"
+}

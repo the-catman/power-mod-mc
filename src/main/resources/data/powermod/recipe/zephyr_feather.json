@@ -1,0 +1,17 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"key": {
+		"P": "minecraft:phantom_membrane",
+		"W": "minecraft:wind_charge",
+		"F": "minecraft:feather"
+	},
+	"pattern": [
+		"PWP",
+		"WFW",
+		"PWP"
+	],
+	"result": {
+		"id": "powermod:zephyr_feather"
+	}
+}

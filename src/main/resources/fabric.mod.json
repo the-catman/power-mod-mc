@@ -1,0 +1,33 @@
+{
+	"schemaVersion": 1,
+	"id": "powermod",
+	"version": "${version}",
+	"name": "Power Mod",
+	"description": "Adds extremely powerful new items.",
+	"authors": [
+		"theca"
+	],
+	"license": "All-Rights-Reserved",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.theca.powermod.PowerMod"
+		],
+		"client": [
+			"com.theca.powermod.client.PowerModClient"
+		]
+	},
+	"mixins": [
+		"powermod.mixins.json",
+		{
+			"config": "powermod.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

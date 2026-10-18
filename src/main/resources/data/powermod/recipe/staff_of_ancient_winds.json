@@ -1,0 +1,17 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "equipment",
+	"key": {
+		"N": "minecraft:netherite_ingot",
+		"B": "minecraft:breeze_rod",
+		"S": "minecraft:nether_star"
+	},
+	"pattern": [
+		"NBN",
+		"BSB",
+		"NBN"
+	],
+	"result": {
+		"id": "powermod:staff_of_ancient_winds"
+	}
+}
